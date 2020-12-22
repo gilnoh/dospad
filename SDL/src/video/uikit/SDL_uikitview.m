@@ -111,8 +111,8 @@ void SDL_init_keyboard()
     [[NSNotificationCenter defaultCenter]addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
 #endif
 	self.multipleTouchEnabled = YES;
+    directTouchMode = YES;  // TODO: remove, set it from config
 	return self;
-    
 }
 
 // MARK: Touch Events
@@ -176,16 +176,21 @@ static CGFloat CGPointDistanceToPoint(CGPoint a, CGPoint b)
         }
     }
 	if (!_primaryTouch) {
-		//NSLog(@"primary began");
+		NSLog(@"primary began");
 		_primaryTouch = touch;
 		_primaryOrigin=[_primaryTouch locationInView:self];
 		_primaryHold = MOUSE_HOLD_WAIT;
 		[self performSelector:@selector(beginHold) withObject:nil afterDelay:MOUSE_HOLD_INTERVAL];
 	} else if (!_secondaryTouch) {
-		//NSLog(@"secondary began");
+		NSLog(@"secondary began");
 		_secondaryTouch = touch;
 		_secondaryOrigin = [_secondaryTouch locationInView:self];
 	}
+    
+    // if in direct touch mode, move cursor to the touched location
+    if(directTouchMode) {
+        [self sendMouseCoordinate:0 x:_primaryOrigin.x y:_primaryOrigin.y];
+    }
 }
 
 // Get called if there is a mouse and you try to use finger
@@ -235,7 +240,7 @@ static CGFloat CGPointDistanceToPoint(CGPoint a, CGPoint b)
         }
 		if (touch == _primaryTouch) {
 			
-			//NSLog(@"primary ended tap count %d", (int)[_primaryTouch tapCount]);
+			NSLog(@"primary ended tap count %d", (int)[_primaryTouch tapCount]);
 			if (self.mouseHoldDelegate
 				&& [self.mouseHoldDelegate currentRightClickMode] == MouseRightClickWithDoubleTap
 				&& [_primaryTouch tapCount] == 2)
@@ -261,6 +266,11 @@ static CGFloat CGPointDistanceToPoint(CGPoint a, CGPoint b)
 			// If right down, we should release it as well
 			// clear right button states
 			_secondaryTouch = nil;
+            if(directTouchMode) {
+                // in direct touch mode, all button should be cleared
+                _primaryTouch = nil;
+                [self endHold];
+            }
 		}
 	}
 }
@@ -288,7 +298,14 @@ static CGFloat CGPointDistanceToPoint(CGPoint a, CGPoint b)
 					[self.mouseHoldDelegate onHoldMoved:b];
 				}
 			}
-			[self sendMouseMotion:0 x:b.x-a.x y:b.y-a.y];
+            
+            // send mouse motion
+            if(directTouchMode) {
+                [self sendMouseCoordinate:0 x:b.x y:b.y];
+            }
+            else {
+                [self sendMouseMotion:0 x:b.x-a.x y:b.y-a.y];
+            }
 		}
 		else if (touch == _secondaryTouch)
 		{
@@ -308,7 +325,7 @@ static CGFloat CGPointDistanceToPoint(CGPoint a, CGPoint b)
 		mice.id = 0;
 		mice.driverdata = NULL;
 		SDL_AddMouse(&mice, "Mouse", 0, 0, 1);
-		SDL_SetRelativeMouseMode(0, SDL_TRUE);
+		SDL_SetRelativeMouseMode(0, SDL_FALSE);
         NSAssert(SDL_GetNumMice()==1, @"Can not create mouse");
 		SDL_SelectMouse(0);
     }
@@ -322,6 +339,41 @@ static CGFloat CGPointDistanceToPoint(CGPoint a, CGPoint b)
 	float scale = 1+2*mouseSpeed;
 	NSAssert(index==0 && SDL_GetNumMice()==1, @"Bad mouse");
 	SDL_SendMouseMotion(index, 1, x*scale, y*scale, 0);
+}
+
+- (void)sendMouseCoordinate:(int) index x:(CGFloat)x y:(CGFloat)y
+{
+    [self ensureSDLMouse];
+    float xscale = [[NSUserDefaults standardUserDefaults] floatForKey:@"mouse_xscale"];
+    float yscale = [[NSUserDefaults standardUserDefaults] floatForKey:@"mouse_yscale"];
+
+    if (floor(xscale) != mouseCoordXScale) {
+        mouseCoordXScale = floor(xscale);
+        needMouseCalibration = YES;
+    }
+    if (floor(yscale) != mouseCoordYScale) {
+        mouseCoordYScale = floor(yscale);
+        needMouseCalibration = YES;
+    }
+    
+    NSLog(@"raw scale values %f %f", xscale, yscale);
+    NSLog(@"effective scale values %f %f", mouseCoordXScale, mouseCoordYScale);
+    
+    // perform calibration, if required
+    if(needMouseCalibration) {
+        // sweep once from (0,0) to (max,max)
+        SDL_SendMouseMotion(index, 0, 0, 0, 0);
+        SDL_SendMouseMotion(index, 0, self.bounds.size.width * mouseCoordXScale, self.bounds.size.height * mouseCoordYScale, 0);
+        needMouseCalibration = NO;
+    }
+
+    // send mouse coordinate as non-relative mode
+    SDL_SendMouseMotion(index, 0, x * mouseCoordXScale, y * mouseCoordYScale, 0);
+}
+
+- (void)calibrateMouse
+{
+    needMouseCalibration = YES;
 }
 
 - (void)sendMouseEvent:(int)index left:(BOOL)isLeft down:(BOOL)isDown

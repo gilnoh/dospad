@@ -70,7 +70,13 @@ typedef enum {
 #if SDL_IPHONE_KEYBOARD
 	UITextField *textField;
 	BOOL keyboardVisible;
-#endif	
+#endif
+    
+    // direct touch related variables
+    BOOL directTouchMode;
+    BOOL needMouseCalibration;
+    float mouseCoordXScale;
+    float mouseCoordYScale;
     
 }
 @property (nonatomic,assign)  id<MouseHoldDelegate> mouseHoldDelegate;
@@ -89,5 +95,8 @@ typedef enum {
 @property (readonly) BOOL keyboardVisible;
 #endif 
 
+// direct touch related methods
+- (void)calibrateMouse;
+    
 @end
 /* *INDENT-ON* */

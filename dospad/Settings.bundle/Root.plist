@@ -107,6 +107,30 @@
 			<string>PSSliderSpecifier</string>
 		</dict>
 		<dict>
+			<key>Type</key>
+			<string>PSSliderSpecifier</string>
+			<key>Key</key>
+			<string>mouse_xscale</string>
+			<key>DefaultValue</key>
+			<integer>2</integer>
+			<key>MinimumValue</key>
+			<integer>1</integer>
+			<key>MaximumValue</key>
+			<integer>4</integer>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSSliderSpecifier</string>
+			<key>Key</key>
+			<string>mouse_yscale</string>
+			<key>DefaultValue</key>
+			<integer>2</integer>
+			<key>MinimumValue</key>
+			<integer>1</integer>
+			<key>MaximumValue</key>
+			<integer>4</integer>
+		</dict>
+		<dict>
 			<key>FooterText</key>
 			<string>Display optional input options in landscape mode (Currently iPad only).</string>
 			<key>Title</key>
